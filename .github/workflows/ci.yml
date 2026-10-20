@@ -56,3 +56,59 @@ jobs:
 
       - name: Ejecutar pruebas (python manage.py test)
         run: python manage.py test
+
+  build-docker:
+    name: Construir y validar imagen Docker
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Construir imagen Docker (Dockerfile -> python:3.10)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: django-cicd-practica:ci
+
+      - name: Levantar Django + PostgreSQL con docker compose
+        run: docker compose up -d
+        env:
+          COMPOSE_PROJECT_NAME: django_cicd_ci
+
+      - name: Esperar a que el contenedor web este listo
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8000/salud/; then
+              echo "Servicio disponible"
+              exit 0
+            fi
+            echo "Esperando contenedor web... intento $i"
+            sleep 3
+          done
+          echo "El servicio no respondio a tiempo"
+          docker compose logs
+          exit 1
+
+      - name: Validar endpoint de salud (simula navegador)
+        run: curl -sf http://localhost:8000/salud/ | tee salud-response.json
+
+      - name: Guardar imagen como artefacto (simulacion de publicacion)
+        run: docker save django-cicd-practica:ci -o django-cicd-practica.tar
+
+      - name: Subir artefacto de la imagen Docker
+        uses: actions/upload-artifact@v4
+        with:
+          name: django-cicd-practica-docker-image
+          path: django-cicd-practica.tar
+          retention-days: 7
+
+      - name: Apagar contenedores
+        if: always()
+        run: docker compose down -v

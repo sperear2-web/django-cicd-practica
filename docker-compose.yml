@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:15
+    container_name: django_cicd_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: django_cicd
+      POSTGRES_USER: django_cicd
+      POSTGRES_PASSWORD: django_cicd
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U django_cicd"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: django_cicd_web
+    restart: unless-stopped
+    environment:
+      DB_ENGINE: postgresql
+      DB_NAME: django_cicd
+      DB_USER: django_cicd
+      DB_PASSWORD: django_cicd
+      DB_HOST: db
+      DB_PORT: 5432
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "*"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
