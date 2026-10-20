@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestor de Tareas - CI/CD Practica</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 640px; margin: 40px auto; background: #f4f6f8; color: #222; }
+        h1 { color: #1a237e; }
+        .resumen { background: #fff; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+        form.nueva { display: flex; gap: 8px; margin-bottom: 20px; }
+        input[type=text] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 14px; border: none; border-radius: 4px; background: #1a237e; color: #fff; cursor: pointer; }
+        ul { list-style: none; padding: 0; }
+        li { background: #fff; padding: 10px 14px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .completada { text-decoration: line-through; color: #888; }
+        .acciones a { margin-left: 8px; font-size: .9em; }
+    </style>
+</head>
+<body>
+    <h1>Gestor de Tareas</h1>
+    <div class="resumen">Total: {{ total }} &middot; Pendientes: {{ pendientes }}</div>
+
+    <form class="nueva" method="post">
+        {% csrf_token %}
+        <input type="text" name="titulo" placeholder="Nueva tarea" required>
+        <button type="submit">Agregar</button>
+    </form>
+
+    <ul>
+        {% for tarea in tareas %}
+        <li>
+            <span class="{% if tarea.completada %}completada{% endif %}">{{ tarea.titulo }}</span>
+            <span class="acciones">
+                <a href="{% url 'completar_tarea' tarea.id %}">{% if tarea.completada %}Reabrir{% else %}Completar{% endif %}</a>
+                <a href="{% url 'eliminar_tarea' tarea.id %}">Eliminar</a>
+            </span>
+        </li>
+        {% empty %}
+        <li>No hay tareas registradas todavia.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
