@@ -112,3 +112,54 @@ jobs:
       - name: Apagar contenedores
         if: always()
         run: docker compose down -v
+
+  simulate-deploy:
+    name: Simular despliegue en carpeta externa
+    runs-on: ubuntu-latest
+    needs: build-docker
+
+    steps:
+      - name: "1. Descargar el proyecto (checkout a carpeta externa)"
+        uses: actions/checkout@v4
+        with:
+          path: despliegue-externo
+
+      - name: "2. Descargar artefacto de la imagen Docker generada en el job anterior"
+        uses: actions/download-artifact@v4
+        with:
+          name: django-cicd-practica-docker-image
+          path: despliegue-externo
+
+      - name: "3. Cargar la imagen Docker (simula DockerHub/registro de artefactos)"
+        working-directory: despliegue-externo
+        run: docker load -i django-cicd-practica.tar
+
+      - name: "4. Ejecutar con Docker Compose desde la carpeta externa"
+        working-directory: despliegue-externo
+        run: docker compose up -d
+        env:
+          COMPOSE_PROJECT_NAME: django_cicd_deploy
+
+      - name: "5. Esperar a que el servicio este arriba"
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8000/salud/; then
+              echo "Despliegue simulado disponible"
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose -f despliegue-externo/docker-compose.yml logs
+          exit 1
+
+      - name: "6. Validar desde el navegador (simulado con curl)"
+        run: |
+          echo "Pagina principal:"
+          curl -sf http://localhost:8000/ -o pagina.html -w "HTTP %{http_code}\n"
+          echo "Endpoint de salud:"
+          curl -sf http://localhost:8000/salud/
+
+      - name: "7. Apagar el despliegue simulado"
+        if: always()
+        working-directory: despliegue-externo
+        run: docker compose down -v
